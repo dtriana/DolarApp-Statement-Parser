@@ -44,15 +44,10 @@ static void ProcessFile(string file, int year, StreamWriter streamWriter)
     const string lineSeparator = "\r\n";
     const int movementLineLength = 92;
     const int movementLineDateColumnLength = 7;
-    const int movementLineTypeColumnStartIndex = 14;
     const int movementLineTypeColumnLength = 24;
-    const int movementLineAmountColumnStartIndex = 38;
     const int movementLineAmountColumnLength = 18;
-    const int movementLineCurrencyColumnStartIndex = 56;
     const int movementLineCurrencyColumnLength = 16;
-    const int movementLineLocalAmountColumnStartIndex = 73;
     const int movementLineLocalAmountColumnLength = 17;
-    const int movementLineLocalDescriptionColumnStartIndex = 91;
     const string plusSignWithASpace = "+ ";
     const string minusSignWithASpace = "- ";
     const string inFlow = "In";
@@ -67,22 +62,27 @@ static void ProcessFile(string file, int year, StreamWriter streamWriter)
     document.Pages.Accept(textAbsorber);
     var extractedText = textAbsorber.Text;
     var lines = extractedText.Split(lineSeparator);
-    foreach (var line in lines.Where(l=>l.Length > movementLineLength))
+    foreach (var line in lines.Where(l=>l.Length > movementLineLength).Select(t=>t.TrimStart()))
     {
         if (!DateOnly.TryParse(line.Remove(movementLineDateColumnLength) + " " + year, out var date)) continue;
-        var txType = line.Substring(movementLineTypeColumnStartIndex, movementLineTypeColumnLength).TrimEnd();
-        var amount = double.Parse(line.Substring(movementLineAmountColumnStartIndex, movementLineAmountColumnLength)
+        var remainingTextAfterRemovingDate = line.Substring(movementLineDateColumnLength).TrimStart();
+        var txType = remainingTextAfterRemovingDate.Remove(movementLineTypeColumnLength).TrimEnd();
+        var remainingTextAfterRemovingType = remainingTextAfterRemovingDate.Substring(movementLineTypeColumnLength).TrimStart();
+        var amount = double.Parse(remainingTextAfterRemovingType.Remove(movementLineAmountColumnLength)
             .TrimEnd()
             .Replace(plusSignWithASpace, string.Empty)
             .Replace(minusSignWithASpace, "-"), amountsFormat);
-        var currency = line.Substring(movementLineCurrencyColumnStartIndex, movementLineCurrencyColumnLength).TrimEnd();
+        var remainingTextAfterRemovingAmount = remainingTextAfterRemovingType.Substring(movementLineAmountColumnLength).TrimStart();
+        var currency = remainingTextAfterRemovingAmount.Remove(movementLineCurrencyColumnLength).TrimEnd();
         double? localAmount = null;
+        var remainingTextAfterRemovingCurrency = remainingTextAfterRemovingAmount.Substring(movementLineCurrencyColumnLength).TrimStart();
         if (currency != "N/A")
-            localAmount = double.Parse(line.Substring(movementLineLocalAmountColumnStartIndex, movementLineLocalAmountColumnLength)
+            localAmount = double.Parse(remainingTextAfterRemovingCurrency.Remove(movementLineLocalAmountColumnLength)
                 .TrimEnd()
                 .Replace(plusSignWithASpace, string.Empty)
                 .Replace(minusSignWithASpace, "-"),amountsFormat);
-        var description = line.Substring(movementLineLocalDescriptionColumnStartIndex).TrimEnd();
+        var remainingTextAfterRemovingLocalAmount = remainingTextAfterRemovingCurrency.Substring(movementLineLocalAmountColumnLength).TrimStart();
+        var description = remainingTextAfterRemovingLocalAmount.TrimEnd();
         var flow = amount > 0 ? inFlow : outFlow;
         if(string.IsNullOrWhiteSpace(txType) && flow == inFlow) txType = textForRefund;
         streamWriter.WriteLine($"{date:yyyy-MM-dd},\"{txType}\",{amount},{currency},{localAmount},\"{description}\",{flow}");

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DolarAppStatementParser": {
+      "commandName": "Project",
+      "commandLineArgs": "D:\\temp\\tmpstatements"
+    }
+  }
+}
